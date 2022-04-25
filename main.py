@@ -1,21 +1,23 @@
-from flask import Flask,request,jsonify,redirect,render_template
-from neo4j import GraphDatabase
 import csv
 
-#establish connection
+from flask import Flask, jsonify
+from neo4j import GraphDatabase
+
+# establish connection
 with open("creds/cred.txt") as f1:
     data = csv.reader(f1, delimiter=",")
     for row in data:
         username = row[0]
         pwd = row[1]
         uri = row[2]
-driver = GraphDatabase.driver(uri=uri, auth=(username, pwd) )
+driver = GraphDatabase.driver(uri=uri, auth=(username, pwd))
 session = driver.session()
-api = Flask(__name__ )
+api = Flask(__name__)
 
-@api.route("/uncompletedTasks",methods=["GET"])
+
+@api.route("/uncompletedTasks", methods=["GET"])
 def display_node():
-    q1 ="""
+    q1 = """
     Match(t:Task)
     where t.outcome = "FAIL"
     RETURN count(t) as count    
@@ -24,7 +26,8 @@ def display_node():
     resultsData = results.data()
     return jsonify(resultsData)
 
-@api.route("/distinctEngineerLvl/taskId=<string:taskId>",methods=["GET"])
+
+@api.route("/distinctEngineerLvl/taskId=<string:taskId>", methods=["GET"])
 def create_node(taskId):
     print(taskId)
     query1 = """
@@ -41,5 +44,5 @@ def create_node(taskId):
         return str(e)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     api.run(debug=True)
