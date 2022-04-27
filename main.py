@@ -1,6 +1,6 @@
 import csv
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, make_response
 from neo4j import GraphDatabase
 
 # establish connection
@@ -22,13 +22,13 @@ def display_node():
     where t.outcome = "FAIL"
     RETURN count(t) as count    
     """
-    results = session.run(q1)
-    resultsData = results.data()
-    return jsonify(resultsData)
+    results = execute_query(q1)
+
+    return create_response(results, 200)
 
 
 @api.route("/distinctEngineerLvl/taskId=<string:taskId>", methods=["GET"])
-def create_node(taskId):
+def disting_engineer_lvl(taskId):
     checkQuery = """
             match (t:Task{task_id:$taskId})
             return t
@@ -37,16 +37,33 @@ def create_node(taskId):
             match (t:Task{task_id:$taskId})-[r:happened]-(v:Visit)
             return distinct(v.engineer_skill_level) AS engineer_skill_level
             """
-    print(checkQuery)
     obj = {"taskId": taskId}
+    checkRes = execute_query(checkQuery, obj)
+
+    if len(checkRes) == 0:
+        return create_response("Task id " + taskId + " does not exist in db", 404)
+    results = execute_query(query1, obj)
+    return create_response(results, 200)
+
+
+def create_response(data, code):
+    if code == 200:
+        return make_response(jsonify({"result": data, "code": code}), 200, )
+    else:
+        return make_response(jsonify({"errorMessage": data, "code": code}), code, )
+
+
+def execute_query(*args):
     try:
-        checkRes = session.run(checkQuery, obj)
-        if (len(checkRes.data())==0):
-            return "Task id " + taskId + " does not exist in db", 404
-        results = session.run(query1, obj)
-        resultsData = results.data()
-        return jsonify(resultsData), 200
+        if len(args) == 1:
+            result = session.run(args[0])
+        else:
+            result = session.run(args[0], args[1])
+        return result.data()
+    except ValueError as e:
+        return jsonify("error communicating with DB"), 400
     except Exception as e:
+        return jsonify("general exception error"), 400
         return str(e)
 
 
